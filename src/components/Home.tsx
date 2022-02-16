@@ -4,7 +4,7 @@ import { io } from 'socket.io-client'
 import IMessage from '../types/message'
 import IUser from '../types/user'
 
-const { ADDRESS } = process.env
+const { REACT_APP_ADDRESS: ADDRESS } = process.env
 const socket = io(ADDRESS!, { transports: ['websocket'] })
 
 const Home = () => {
@@ -13,6 +13,7 @@ const Home = () => {
   const [loggedIn, setLoggedIn] = useState(false)
   const [onlineUsers, setOnlineUsers] = useState<IUser[]>([])
   const [chatHistory, setChatHistory] = useState<IMessage[]>([])
+  const [room, setRoom] = useState('')
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -37,7 +38,7 @@ const Home = () => {
 
   const submitUsername = (e: FormEvent) => {
     e.preventDefault()
-    socket.emit('setUsername', { username: username })
+    socket.emit('setUsername', { username: username, room: username })
   }
 
   const fetchOnlineUsers = async () => {
@@ -63,16 +64,29 @@ const Home = () => {
       sender: username,
       id: socket.id,
       timestamp: Date.now(),
+      room
     }
 
-    socket.emit('sendmessage', newMessage)
+    socket.emit('sendMessage', {message: newMessage, room})
     setChatHistory([...chatHistory, newMessage])
     setMessage('')
+  }
+
+  const handleRoomChange = (room: string) => {
+    setRoom(room)
   }
 
   return (
     <Container fluid className='px-4'>
       <Row className='my-3' style={{ height: '95vh' }}>
+      <Col md={2}>
+          <ListGroup>
+            {onlineUsers.length === 0 && <ListGroup.Item>No users yet</ListGroup.Item>}
+            {onlineUsers.map((user) => (
+              <ListGroup.Item key={user.id} onClick={() => handleRoomChange(user.username)}>{user.username}</ListGroup.Item>
+            ))}
+          </ListGroup>
+        </Col>
         <Col md={10} className='d-flex flex-column justify-content-between'>
           <Form onSubmit={submitUsername}>
             <FormControl
@@ -80,12 +94,13 @@ const Home = () => {
               value={username}
               onChange={(e: any) => setUsername(e.target.value)}
               disabled={loggedIn}
+              size="lg"
             />
           </Form>
           <ListGroup>
             {chatHistory.map((message, i) => (
               <ListGroup.Item key={i}>
-                <strong>{message.sender}</strong>
+                <strong>{message.sender} - {message.room}</strong>
                 <span className='mx-1'> | </span>
                 <span>{message.text}</span>
                 <span className='ml-2' style={{ fontSize: '0.7rem' }}>
@@ -100,17 +115,9 @@ const Home = () => {
               value={message}
               onChange={(e: any) => setMessage(e.target.value)}
               disabled={!loggedIn}
+              size="lg"
             />
           </Form>
-        </Col>
-        <Col md={2}>
-          <div className='mb-3'>Connected users:</div>
-          <ListGroup>
-            {onlineUsers.length === 0 && <ListGroup.Item>No users yet</ListGroup.Item>}
-            {onlineUsers.map((user) => (
-              <ListGroup.Item key={user.id}>{user.username}</ListGroup.Item>
-            ))}
-          </ListGroup>
         </Col>
       </Row>
     </Container>

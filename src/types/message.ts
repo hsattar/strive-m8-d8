@@ -3,6 +3,7 @@ interface IMessage {
   sender: string
   timestamp: number
   id: string
+  room: string
 }
 
 export default IMessage
